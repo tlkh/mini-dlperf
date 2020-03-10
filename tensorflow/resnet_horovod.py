@@ -88,13 +88,13 @@ read_config = tfds.ReadConfig(options=options, interleave_parallel_reads=worker_
 if args.imagenet2012:
     dataset, info = tfds.load("imagenet2012",
                               read_config=read_config,
-                              decoders={'image': tfds.decode.SkipDecoding(),},
+                              decoders={"image": tfds.decode.SkipDecoding(),},
                               with_info=True,
                               as_supervised=True)
 else:
     dataset, info = tfds.load("imagenette/320px",
                               read_config=read_config,
-                              decoders={'image': tfds.decode.SkipDecoding(),},
+                              decoders={"image": tfds.decode.SkipDecoding(),},
                               with_info=True,
                               as_supervised=True)
 num_class = info.features["label"].num_classes
@@ -201,7 +201,26 @@ if args.fp16comp:
     compression = hvd.Compression.fp16
 else:
     compression = hvd.Compression.none
-opt = tf.keras.optimizers.SGD(lr=LEARNING_RATE, momentum=0.8)
+    
+def convert_for_training(model, wd=0.00005):
+    model_config = model.get_config()
+    for layer, layer_config in zip(model.layers, model_config["layers"]):
+        if hasattr(layer, "kernel_regularizer"):
+            regularizer = tf.keras.regularizers.l2(wd)
+            layer_config["config"]["kernel_regularizer"] = {
+                "class_name": regularizer.__class__.__name__,
+                "config": regularizer.get_config()
+            }
+        if type(layer) == tf.keras.layers.BatchNormalization:
+            layer_config["config"]["momentum"] = 0.9
+            layer_config["config"]["epsilon"] = 1e-5
+    del model
+    model = keras.models.Model.from_config(model_config)
+    return model
+
+model = convert_for_training(model)
+    
+opt = tf.keras.optimizers.SGD(lr=LEARNING_RATE, momentum=0.875)
 #opt = optimizers.NovoGrad(lr=LEARNING_RATE)
 if not args.ctl:
     if args.amp:
@@ -239,7 +258,7 @@ callbacks = [
 if hvd_rank == 0:
     verbose = 1
     time_callback = utils.TimeHistory()
-    checkpoints = tf.keras.callbacks.ModelCheckpoint("checkpoint.h5", monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
+    checkpoints = tf.keras.callbacks.ModelCheckpoint("checkpoint.h5", monitor="val_loss", verbose=1, save_best_only=True, save_weights_only=True)
     callbacks.append(time_callback)
     callbacks.append(checkpoints)
     if args.stats:
