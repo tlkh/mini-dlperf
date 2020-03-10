@@ -24,6 +24,8 @@ parser.add_argument("--stats", action="store_true", default=False,
                     help="Record stats using NVStatsRecorder")
 parser.add_argument("--dataset", default="imagenette/320px",
                     help="TFDS Dataset to train on")
+parser.add_argument("--data_dir", default="~/tensorflow_datasets",
+                    help="TFDS Dataset directory")
 parser.add_argument("--verbose", default=1, type=int)
 parser.add_argument("--steps", type=int, default=None)
 parser.add_argument("--no_val", action="store_true", default=False)
@@ -77,6 +79,7 @@ print("Loading Dataset")
 print("Using TFDS dataset:", args.dataset)
     
 dataset = dataloaders.return_fast_tfds(args.dataset,
+                                       data_dir=args.data_dir,
                                        worker_threads=worker_threads,
                                        buffer=16384)
 
@@ -90,7 +93,8 @@ if args.img_aug:
         image = tf.io.decode_jpeg(_image, channels=3,
                                   fancy_upscaling=False,
                                   dct_method="INTEGER_FAST")
-        image = tf.image.resize_with_pad(image, L_IMG_SIZE, L_IMG_SIZE)
+        #image = tf.image.resize_with_pad(image, L_IMG_SIZE, L_IMG_SIZE)
+        image = tf.image.resize(image, (L_IMG_SIZE, L_IMG_SIZE))
         image = tf.image.random_crop(image, IMG_SIZE_C)
         image = tf.image.random_brightness(image, max_delta=32/255)
         image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
@@ -107,7 +111,8 @@ else:
         image = tf.io.decode_jpeg(_image, channels=3,
                                   fancy_upscaling=False,
                                   dct_method="INTEGER_FAST")
-        image = tf.image.resize_with_pad(image, IMG_SIZE, IMG_SIZE)
+        #image = tf.image.resize_with_pad(image, IMG_SIZE, IMG_SIZE)
+        image = tf.image.resize(image, (IMG_SIZE, IMG_SIZE))
         image = tf.cast(image, tf.float32) / 255.0
         label = tf.one_hot(label, num_class)
         return image, label
@@ -118,7 +123,8 @@ def format_test_example(_image, label):
     image = tf.io.decode_jpeg(_image, channels=3,
                               fancy_upscaling=False,
                               dct_method="INTEGER_FAST")
-    image = tf.image.resize_with_pad(image, IMG_SIZE, IMG_SIZE)
+    image = tf.image.central_crop(image, 0.875)
+    image = tf.image.resize(image, (IMG_SIZE, IMG_SIZE))
     image = tf.cast(image, tf.float32) / 255.0
     label = tf.one_hot(label, num_class)
     return image, label
@@ -180,15 +186,21 @@ with strategy.scope():
         print("Using ResNet-50 model")
         model = cnn_models.rn50((IMG_SIZE,IMG_SIZE), num_class, weights=None)
         
+    model = cnn_models.convert_for_training(model)
+    
     warmup_epochs = 5
 
     schedule = schedules.DecayWithWarmup(
+        epoch_steps=train_steps,
         base_lr=args.lr,
-        warmup_steps=warmup_epochs * train_steps,
-        max_steps=EPOCHS * train_steps,
+        min_lr=0.0004,
+        decay_exp=10,
+        warmup_epochs=warmup_epochs,
+        flat_epochs=30,
+        max_epochs=EPOCHS,
     )
     
-    opt = tf.keras.optimizers.SGD(learning_rate=schedule, momentum=0.85)
+    opt = tf.keras.optimizers.SGD(learning_rate=schedule, momentum=0.875)
     
     if args.amp:
         opt = tf.keras.mixed_precision.experimental.LossScaleOptimizer(opt, "dynamic")
@@ -197,6 +209,7 @@ with strategy.scope():
                   metrics=["acc"])
     try:
         model.load_weights("checkpoint.h5")
+        print("Loaded weights from checkpoint")
     except Exception as e:
         print(e)
         print("Not resuming from checkpoint")

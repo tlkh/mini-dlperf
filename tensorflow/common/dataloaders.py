@@ -4,10 +4,11 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import transformers as xfmers
 
-def return_naive_tfds(dataset_name="imagenette/160px", buffer=8192, num_shards=1, index=0):
+def return_naive_tfds(dataset_name="imagenette/160px", data_dir="~/tensorflow_datasets", buffer=8192, num_shards=1, index=0):
     st = time.time()
     
     dataset, info = tfds.load(dataset_name,
+                              data_dir=data_dir,
                               with_info=True,
                               as_supervised=True)
     num_class = info.features["label"].num_classes
@@ -37,12 +38,14 @@ def return_naive_tfds(dataset_name="imagenette/160px", buffer=8192, num_shards=1
     
     return dataset
 
-def return_fast_tfds(dataset_name="imagenette/160px", worker_threads=8, buffer=8192, num_shards=1, index=0):
+def return_fast_tfds(dataset_name="imagenette/160px", data_dir="~/tensorflow_datasets", worker_threads=8, buffer=8192, num_shards=1, index=0):
     st = time.time()
     
     options = tf.data.Options()
+    options.experimental_slack = True
     read_config = tfds.ReadConfig(options=options, interleave_parallel_reads=worker_threads)
     dataset, info = tfds.load(dataset_name,
+                              data_dir=data_dir,
                               read_config=read_config,
                               decoders={'image': tfds.decode.SkipDecoding(),},
                               with_info=True,
