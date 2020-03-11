@@ -5,17 +5,17 @@
 Performs a matrix multiplication benchmark test, returning the peak TFLOPS.
 
 ```shell
-python3 gpu_burn.py --num_gpus 4
+python3 gpu_burn.py --num_gpus 8
 ```
 
-On a DGX Station with 4 NVIDIA V100 GPU, you should get a result like the following:
+On a DGX-1 with 8 NVIDIA V100 GPUs, you should get a result like the following:
 
 ```
-Max TFLOPS achieved (4 GPUs)
+Max TFLOPS achieved (8 GPUs)
 ============================
-* FP64: 29 TFLOPS
-* FP32: 59 TFLOPS
-* FP16: 391 TFLOPS
+* FP64: 57 TFLOPS
+* FP32: 116 TFLOPS
+* FP16: 742 TFLOPS
 ```
 
 | GPU Utilization | TFLOPS Plot |

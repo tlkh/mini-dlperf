@@ -76,16 +76,17 @@ def convert_for_training(model, wd=0.00005):
     model_config = model.get_config()
     for layer, layer_config in zip(model.layers, model_config["layers"]):
         if hasattr(layer, "kernel_regularizer"):
-            print("Adjust kernel_regularizer settings for", layer.name)
+            print("Adjust kernel_regularizer for", layer.name)
             regularizer = tf.keras.regularizers.l2(wd)
             layer_config["config"]["kernel_regularizer"] = {
                 "class_name": regularizer.__class__.__name__,
                 "config": regularizer.get_config()
             }
-        if type(layer) == tf.keras.layers.BatchNormalization:
+        if str(type(layer)) == "<class 'tensorflow.python.keras.layers.normalization.BatchNormalization'>":
             print("Adjust BatchNorm settings for", layer.name)
             layer_config["config"]["momentum"] = 0.9
             layer_config["config"]["epsilon"] = 1e-5
+            layer_config["config"]["fused"] = True
     del model
     model = tf.keras.models.Model.from_config(model_config)
     model.trainable = True
