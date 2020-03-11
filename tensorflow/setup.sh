@@ -28,6 +28,6 @@ python3 -c 'import os; import tensorflow_datasets as tfds; tfds.load("imagenet20
 
 echo "[4/4] Cache models"
 
-CUDA_VISIBLE_DEVICES=-1 python3 -c 'from common import xfmer_models; xfmer_models.create_model("xlm-mlm-en-2048")'
+#CUDA_VISIBLE_DEVICES=-1 python3 -c 'from common import xfmer_models; xfmer_models.create_model("xlm-mlm-en-2048")'
 
 echo "Done!"
