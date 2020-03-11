@@ -50,7 +50,7 @@ import time
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from common import dataloaders, cnn_models, callbacks, schedules, optimizers
+from common import dataloaders, cnn_models, callbacks, schedules
 
 if args.stats:
     from nvstatsrecorder.callbacks import NVStats, NVLinkStats
@@ -233,7 +233,7 @@ callbacks = [time_callback, checkpoints]
 
 if args.stats:
     SUDO_PASSWORD = os.environ["SUDO_PASSWORD"]
-    nv_stats = NVStats(gpu_index=0, interval=5)
+    nv_stats = NVStats(gpu_index=0, interval=5, tensor_util=True, sudo_password=SUDO_PASSWORD)
     nvlink_stats = NVLinkStats(SUDO_PASSWORD, gpus=[0,1,2,3], interval=5)
     callbacks.append(nv_stats)
     callbacks.append(nvlink_stats)
