@@ -31,16 +31,16 @@ Max TFLOPS achieved (8 GPUs)
 * Uses NCCL: Yes
 
 ```shell
-python3 resnet_tfdist.py --amp --xla --batchsize 192 
+python3 resnet_tfdist.py --xla --amp --batch_size 256 --lr 0.5 --img_aug --epochs 90 --dataset imagenette/320px
 ```
 
 | V100 | Training time | Images/sec | Val Acc |
 | ---- | ------------- | ---------- | ------- |
-| 4    | 280s          | 4161       | 0.8208  |
+| 4    | 519s          | 4274       | 0.858   |
 
 | GPU Utilization | NVLink Utilization |
 | --------------- | ------------------ |
-| ![](graphs/resnet_gpu_util.png) | ![](graphs/resnet_nvlink_util.png) |
+| ![](graphs/imagenette_320px_resnet_gpu_util.png) | ![](graphs/imagenette_320px_resnet_nvlink_util.png) |
 
 **DenseNet-201 + Horovod + OpenMPI + NCCL**
 

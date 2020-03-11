@@ -196,8 +196,8 @@ with strategy.scope():
     schedule = schedules.DecayWithWarmup(
         epoch_steps=train_steps,
         base_lr=args.lr,
-        min_lr=0.001,
-        decay_exp=6,
+        min_lr=0.0001,
+        decay_exp=4,
         warmup_epochs=warmup_epochs,
         flat_epochs=30,
         max_epochs=EPOCHS,
@@ -227,14 +227,15 @@ if verbose != 1:
     print("Verbose level:", verbose)
     print("You will not see progress during training!")
 time_callback = callbacks.TimeHistory(img_per_epoch=train_steps*BATCH_SIZE)
-checkpoints = tf.keras.callbacks.ModelCheckpoint("checkpoint.h5", monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=True)
+checkpoint_name = str(int(time.time())) + "_checkpoint.h5"
+checkpoints = tf.keras.callbacks.ModelCheckpoint(checkpoint_name, monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=True)
 
 callbacks = [time_callback, checkpoints]
 
 if args.stats:
     SUDO_PASSWORD = os.environ["SUDO_PASSWORD"]
-    nv_stats = NVStats(gpu_index=0, interval=5, tensor_util=True, sudo_password=SUDO_PASSWORD)
-    nvlink_stats = NVLinkStats(SUDO_PASSWORD, gpus=[0,1,2,3], interval=5)
+    nv_stats = NVStats(gpu_index=0, interval=4, tensor_util=True, sudo_password=SUDO_PASSWORD)
+    nvlink_stats = NVLinkStats(SUDO_PASSWORD, gpus=[0,1,2,3], interval=4)
     callbacks.append(nv_stats)
     callbacks.append(nvlink_stats)
 
@@ -253,7 +254,7 @@ if args.no_val:
                   epochs=EPOCHS, callbacks=callbacks, verbose=verbose)
 else:
     with strategy.scope():
-        model.fit(train, steps_per_epoch=train_steps, validation_freq=2, 
+        model.fit(train, steps_per_epoch=train_steps, validation_freq=1, 
                   validation_data=valid, validation_steps=valid_steps,
                   epochs=EPOCHS, callbacks=callbacks, verbose=verbose) 
     
@@ -271,7 +272,7 @@ fps = train_steps*BATCH_SIZE/duration
 
 try:
     print("Loading best checkpoint")
-    model.load_weights("checkpoint.h5")
+    model.load_weights(checkpoint_name)
 except Exception as e:
     print(e)
     print("Not loading any checkpoint")
