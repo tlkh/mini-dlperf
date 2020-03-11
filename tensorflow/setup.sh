@@ -9,7 +9,7 @@ pip install -r ../requirements.txt
 echo "[2/4] Update TF Addons, Datasets"
 
 pip uninstall tensorflow-addons tensorflow-datasets -y
-pip install tensorflow-addons tensorflow-datasets
+pip install tensorflow-addons tensorflow-datasets --user
 
 echo "[3/4] Cache datasets"
 
