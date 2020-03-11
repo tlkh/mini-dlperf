@@ -22,7 +22,7 @@ parser.add_argument("--epochs", default=90, type=int,
                     help="Number of epochs to train for")
 parser.add_argument("--stats", action="store_true", default=False,
                     help="Record stats using NVStatsRecorder")
-parser.add_argument("--dataset", default="imagenette/320px",
+parser.add_argument("--dataset", default="imagenette/160px",
                     help="TFDS Dataset to train on")
 parser.add_argument("--data_dir", default="~/tensorflow_datasets",
                     help="TFDS Dataset directory")
@@ -34,6 +34,7 @@ args = parser.parse_args()
 
 import os
 import psutil
+psutil.cpu_percent(interval=None)
 import multiprocessing
 worker_threads = multiprocessing.cpu_count()
 os.environ["TF_DISABLE_NVTX_RANGES"] = "1"
@@ -49,7 +50,7 @@ import time
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from common import dataloaders, cnn_models, callbacks, schedules
+from common import dataloaders, cnn_models, callbacks, schedules, optimizers
 
 if args.stats:
     from nvstatsrecorder.callbacks import NVStats, NVLinkStats
@@ -72,7 +73,6 @@ EPOCHS = args.epochs
 print("Number of devices:", replicas)
 print("Global batch size:", BATCH_SIZE)
 print("Base learning rate:", args.lr)
-
 
 print("Loading Dataset")
 
@@ -102,7 +102,7 @@ if args.img_aug:
         image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
         image = tf.image.random_flip_left_right(image)
         image = tf.cast(image, tf.float32) / 255.0
-        image = tf.clip_by_value(image, 0.0, 1.0)
+        image = tf.clip_by_value(image, 0, 1.0)
         label = tf.one_hot(label, num_class)
         return image, label
 else:
@@ -134,7 +134,7 @@ print("Build tf.data input pipeline")
 train = dataset["train"]
 train = train.map(format_train_example, num_parallel_calls=worker_threads)
 train = train.batch(BATCH_SIZE, drop_remainder=True)
-train = train.prefetch(32)
+train = train.prefetch(36)
 
 valid = dataset["valid"]
 valid = valid.map(format_test_example, num_parallel_calls=worker_threads)
@@ -143,21 +143,23 @@ if num_valid > 512 :
 else:
     VAL_BATCH_SIZE = num_valid//replicas
 valid = valid.batch(VAL_BATCH_SIZE, drop_remainder=False)
-valid = valid.prefetch(32)
+valid = valid.prefetch(36)
 
 train_steps = int(num_train/BATCH_SIZE)
 valid_steps = int(num_valid/VAL_BATCH_SIZE)
 
 print("Running pipelines:")
 
-for batch in train.take(1):
+for batch in train.take(2):
     image, label = batch[0].numpy(), batch[1].numpy()
     print("* Image shape:", image.shape)
+    print("* Image size:", len(str(image)))
     print("* Label shape:", label.shape)
 
-for batch in valid.take(1):
+for batch in valid.take(2):
     image, label = batch[0].numpy(), batch[1].numpy()
     print("* Image shape:", image.shape)
+    print("* Image size:", len(str(image)))
     print("* Label shape:", label.shape)
     
 print("Wait for built prefetch cache")
@@ -193,26 +195,29 @@ with strategy.scope():
     schedule = schedules.DecayWithWarmup(
         epoch_steps=train_steps,
         base_lr=args.lr,
-        min_lr=0.0004,
-        decay_exp=10,
+        min_lr=0.001,
+        decay_exp=6,
         warmup_epochs=warmup_epochs,
         flat_epochs=30,
         max_epochs=EPOCHS,
     )
     
-    opt = tf.keras.optimizers.SGD(learning_rate=schedule, momentum=0.875)
+    #opt = tf.keras.optimizers.SGD(learning_rate=schedule, momentum=0.9)
+    opt = tf.keras.optimizers.Adam(learning_rate=schedule)
     
     if args.amp:
         opt = tf.keras.mixed_precision.experimental.LossScaleOptimizer(opt, "dynamic")
     model.compile(loss="categorical_crossentropy",
                   optimizer=opt,
                   metrics=["acc"])
+    """
     try:
         model.load_weights("checkpoint.h5")
         print("Loaded weights from checkpoint")
     except Exception as e:
         print(e)
         print("Not resuming from checkpoint")
+    """
 
 print("Train model")
 
@@ -220,8 +225,8 @@ verbose = args.verbose
 if verbose != 1:
     print("Verbose level:", verbose)
     print("You will not see progress during training!")
-time_callback = callbacks.TimeHistory()
-checkpoints = tf.keras.callbacks.ModelCheckpoint("checkpoint.h5", monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
+time_callback = callbacks.TimeHistory(img_per_epoch=train_steps*BATCH_SIZE)
+checkpoints = tf.keras.callbacks.ModelCheckpoint("checkpoint.h5", monitor='val_acc', verbose=1, save_best_only=True, save_weights_only=True)
 
 callbacks = [time_callback, checkpoints]
 
@@ -247,7 +252,7 @@ if args.no_val:
                   epochs=EPOCHS, callbacks=callbacks, verbose=verbose)
 else:
     with strategy.scope():
-        model.fit(train, steps_per_epoch=train_steps, validation_freq=1, 
+        model.fit(train, steps_per_epoch=train_steps, validation_freq=2, 
                   validation_data=valid, validation_steps=valid_steps,
                   epochs=EPOCHS, callbacks=callbacks, verbose=verbose) 
     
