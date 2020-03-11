@@ -67,7 +67,7 @@ replicas = strategy.num_replicas_in_sync
 BATCH_SIZE = args.batch_size * replicas
 IMG_SIZE = args.img_size
 IMG_SIZE_C = (args.img_size, args.img_size, 3)
-L_IMG_SIZE = int(args.img_size*1.2)
+L_IMG_SIZE = (int(args.img_size*1.1), int(args.img_size*1.1))
 EPOCHS = args.epochs
 
 print("Number of devices:", replicas)
@@ -95,7 +95,7 @@ if args.img_aug:
                                   fancy_upscaling=False,
                                   dct_method="INTEGER_FAST")
         #image = tf.image.resize_with_pad(image, L_IMG_SIZE, L_IMG_SIZE)
-        image = tf.image.resize(image, (L_IMG_SIZE, L_IMG_SIZE))
+        image = tf.image.resize(image, L_IMG_SIZE)
         image = tf.image.random_crop(image, IMG_SIZE_C)
         image = tf.image.random_brightness(image, max_delta=32/255)
         image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
