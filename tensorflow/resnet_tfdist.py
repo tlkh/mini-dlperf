@@ -88,6 +88,7 @@ num_train = dataset["num_train"]
 num_valid = dataset["num_valid"]
 
 if args.img_aug:
+    
     @tf.function
     def format_train_example(_image, label):
         image = tf.io.decode_jpeg(_image, channels=3,
@@ -123,7 +124,7 @@ def format_test_example(_image, label):
     image = tf.io.decode_jpeg(_image, channels=3,
                               fancy_upscaling=False,
                               dct_method="INTEGER_FAST")
-    image = tf.image.central_crop(image, 0.875)
+    image = tf.image.central_crop(image, 0.9)
     image = tf.image.resize(image, (IMG_SIZE, IMG_SIZE))
     image = tf.cast(image, tf.float32) / 255.0
     label = tf.one_hot(label, num_class)
@@ -202,8 +203,8 @@ with strategy.scope():
         max_epochs=EPOCHS,
     )
     
-    #opt = tf.keras.optimizers.SGD(learning_rate=schedule, momentum=0.9)
-    opt = tf.keras.optimizers.Adam(learning_rate=schedule)
+    opt = tf.keras.optimizers.SGD(learning_rate=schedule, momentum=0.9)
+    #opt = tf.keras.optimizers.Adam(learning_rate=schedule)
     
     if args.amp:
         opt = tf.keras.mixed_precision.experimental.LossScaleOptimizer(opt, "dynamic")

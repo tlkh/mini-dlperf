@@ -72,7 +72,7 @@ def mobilenet(img_size=(224,224), num_class=2, weights="imagenet", dtype=tf.floa
     return model
 
 
-def convert_for_training(model, wd=0.00005):
+def convert_for_training(model, wd=0.0001):
     model_config = model.get_config()
     for layer, layer_config in zip(model.layers, model_config["layers"]):
         if hasattr(layer, "kernel_regularizer"):
