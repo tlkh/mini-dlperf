@@ -135,7 +135,7 @@ print("Build tf.data input pipeline")
 train = dataset["train"]
 train = train.map(format_train_example, num_parallel_calls=worker_threads)
 train = train.batch(BATCH_SIZE, drop_remainder=True)
-train = train.prefetch(36)
+train = train.prefetch(16)
 
 valid = dataset["valid"]
 valid = valid.map(format_test_example, num_parallel_calls=worker_threads)
@@ -144,7 +144,7 @@ if num_valid > 512 :
 else:
     VAL_BATCH_SIZE = num_valid//replicas
 valid = valid.batch(VAL_BATCH_SIZE, drop_remainder=False)
-valid = valid.prefetch(36)
+valid = valid.prefetch(16)
 
 train_steps = int(num_train/BATCH_SIZE)
 valid_steps = int(num_valid/VAL_BATCH_SIZE)
