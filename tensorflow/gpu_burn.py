@@ -70,8 +70,11 @@ fp16_tflops, fp32_tflops, fp64_tflops = [], [], []
 M_list = [10240, 8192, 5200, 5120, 5040, 4096, 2048, 1024, 512, 320, 256, 128, 80, 64, 32, 8, 2, 1]
 
 if args.stats:
-    SUDO_PASSWORD = os.environ["SUDO_PASSWORD"]
-    nv_stats_recorder = NVStatsRecorder(gpu_index=0, tensor_util=True, sudo_password=SUDO_PASSWORD)
+    try:
+        SUDO_PASSWORD = os.environ["SUDO_PASSWORD"]
+        nv_stats_recorder = NVStatsRecorder(gpu_index=0, tensor_util=True, sudo_password=SUDO_PASSWORD)
+    except:
+        nv_stats_recorder = NVStatsRecorder(gpu_index=0, tensor_util=False)
     nv_stats_recorder.start(interval=3)
 
 print("\nStarting burn...\n")
