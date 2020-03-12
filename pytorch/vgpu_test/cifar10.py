@@ -10,10 +10,9 @@ import torch.optim as optim
 import apex
 from tqdm import tqdm
 import multiprocessing
-num_threads = 2
-BATCH_SIZE = 256
+num_threads = 4
+BATCH_SIZE = 512
 EPOCHS = 10
-NN_UNITS = 256
 LEARNING_RATE = 0.001
 AMP_LEVEL = "O1"
 PATH = "./cifar_net.pth"
@@ -22,7 +21,6 @@ print(" Configuration ")
 print("===============")
 print("   Batch size:", BATCH_SIZE)
 print("  CPU threads:", num_threads)
-print("     NN units:", NN_UNITS)
 print("Learning rate:", LEARNING_RATE)
 print("    AMP level:", AMP_LEVEL)
 print("       Epochs:", EPOCHS)
@@ -31,9 +29,9 @@ print("Model to be saved to", PATH)
 
 print("\n\n")
 
-def return_model(num_class, pretrained=True):
-    model = models.resnet18(pretrained=pretrained)
-    num_ftrs = model_ft.fc.in_features
+def return_cnn_model(num_class=2, pretrained=True):
+    model = torchvision.models.wide_resnet50_2(pretrained=pretrained)
+    num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, num_class)
     return model
 
@@ -59,9 +57,9 @@ def main():
     testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE,
                                              shuffle=False, num_workers=num_threads)
 
-    classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
+    classes = ["plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 
-    model = Net(units=NN_UNITS).cuda()
+    model = return_cnn_model(num_class=len(classes), pretrained=True).cuda()
     print("Number of parameters:", count_parameters(model))
 
     criterion = nn.CrossEntropyLoss()
