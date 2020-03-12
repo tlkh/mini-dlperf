@@ -18,11 +18,9 @@ Max TFLOPS achieved (8 GPUs)
 * FP16: 742 TFLOPS
 ```
 
-On DGX Station (4 V100):
-
 | GPU Utilization | TFLOPS Plot |
 | --------------- | ----------- |
-| ![](graphs/burn_4_gpu_util.jpg) | ![](graphs/burn_4_gpu_tflops_plot.jpg) |
+| ![](graphs/burn_8_gpu_util.jpg) | ![](graphs/burn_8_gpu_tflops_plot.jpg) |
 
 ## Image Classification
 
@@ -71,7 +69,7 @@ mpirun -np 4 \
 
 | V100 | Training time | Examples/sec | Val Acc |
 | ---- | ------------- | ------------ | ------- |
-| 4    | 1675s         | 67           | 0.8093  |
+| 4    | 1489s         | 292          | 0.63    |
 
 | GPU Utilization | NVLink Utilization |
 | --------------- | ------------------ |
