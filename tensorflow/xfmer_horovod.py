@@ -3,7 +3,6 @@ import os
 import psutil
 psutil.cpu_percent(interval=None)
 import multiprocessing
-worker_threads = multiprocessing.cpu_count()//4
 os.environ["TF_DISABLE_NVTX_RANGES"] = "1"
 os.environ["NCCL_DEBUG"] = "WARN"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
@@ -45,8 +44,6 @@ parser.add_argument("--task", default="mrpc",
                     help="Task for training and evaluation")
 parser.add_argument("--model", default="bert-large-cased-whole-word-masking",
                     help="Which Transformer model to use")
-parser.add_argument("--outpath", default="./",
-                    help="Output path")
 parser.add_argument("--stats", action="store_true", default=False,
                     help="Record stats using NVStatsRecorder")
 args = parser.parse_args()
@@ -59,17 +56,11 @@ MAX_SEQ_LEN = args.maxseqlen
 BATCH_SIZE = args.batch_size
 EPOCHS = args.epochs
 
-if args.outpath:
-    OUT_PATH = args.outpath
-    if OUT_PATH[-1] != "/":
-        OUT_PATH = OUT_PATH + "/"
-else:
-    OUT_PATH = args.outpath
-os.makedirs(OUT_PATH, exist_ok=True)
-
 hvd.init()
 hvd_rank = hvd.local_rank()
 hvd_size = hvd.size()
+
+worker_threads = multiprocessing.cpu_count()//hvd_size
 
 physical_devices = tf.config.experimental.list_physical_devices("GPU")
 tf.config.experimental.set_visible_devices(physical_devices[hvd_rank], 'GPU')
@@ -141,7 +132,7 @@ print("Done!")
 print(hvd_rank, "Building model...")
 
 model = xfmer_models.create_model(model_name, task_dataset["num_labels"])
-opt = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE, epsilon=1e-07)
+opt = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE, epsilon=1e-08)
 if args.fp16comp:
     print("Using float16 compression for all-reduce")
     compression = hvd.Compression.fp16
@@ -183,8 +174,9 @@ if hvd_rank == 0:
     verbose = 2
     model.summary()
     time_callback = callbacks.TimeHistory(img_per_epoch=BATCH_SIZE*hvd_size*int(train_steps_per_epoch/fake_epochs_ratio))
+    checkpoint_name = str(int(time.time()))+"_checkpoint.h5"
     checkpoints = tf.keras.callbacks.ModelCheckpoint(monitor="val_accuracy", mode="max",
-                                                     filepath=OUT_PATH+"checkpoint.h5",
+                                                     filepath=checkpoint_name,
                                                      save_weights_only=True,
                                                      save_best_only=True)
     callbacks_list.append(time_callback)
@@ -210,15 +202,17 @@ log = model.fit(train_dataset,
 
 if hvd_rank == 0:
     script_end_time = time.time()
-    model.load_weights(OUT_PATH+"checkpoint.h5")
-    score = model.evaluate(test_dataset, steps=int(task_dataset["test_examples"]/BATCH_SIZE))
+    model.load_weights(checkpoint_name)
+    score = model.evaluate(test_dataset, steps=int(task_dataset["test_examples"]/val_batchsize))
     
     if args.stats:
         nv_stats_recorder = nv_stats.recorder
         nvlink_stats_recorder = nvlink_stats.recorder
         SMOOTH = 10
-        nv_stats_recorder.plot_gpu_util(smooth=SMOOTH, outpath="transformer_gpu_util.png")
-        nvlink_stats_recorder.plot_nvlink_traffic(smooth=SMOOTH, outpath="transformer_nvlink_util.png")
+        nv_stats_recorder.plot_gpu_util(smooth=SMOOTH, outpath="transformer_gpu_util.jpg")
+        nv_stats_recorder.plot_gpu_temp(smooth=SMOOTH, outpath="transformer_gpu_temp.jpg")
+        nvlink_stats_recorder.plot_nvlink_traffic(smooth=SMOOTH, outpath="transformer_nvlink_util.jpg")
+        nvlink_stats_recorder.summary()
 
     # results
     

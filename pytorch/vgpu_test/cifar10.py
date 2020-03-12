@@ -31,42 +31,11 @@ print("Model to be saved to", PATH)
 
 print("\n\n")
 
-class Net(nn.Module):
-    def __init__(self, units=256):
-        super(Net, self).__init__()
-        self.units = units
-        self.conv1 = nn.Conv2d(3, self.units, 3, padding=1)
-        self.conv2 = nn.Conv2d(self.units, self.units, 3, padding=1)
-        self.conv3 = nn.Conv2d(self.units, self.units, 3, padding=1)
-        self.conv4 = nn.Conv2d(self.units, self.units, 3, padding=1)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv5 = nn.Conv2d(self.units, self.units, 3, padding=1)
-        self.conv6 = nn.Conv2d(self.units, self.units, 3, padding=1)
-        self.conv7 = nn.Conv2d(self.units, self.units, 3, padding=1)
-        self.conv8 = nn.Conv2d(self.units, self.units, 3, padding=1)
-        self.bn = nn.BatchNorm2d(self.units)
-        self.fc1 = nn.Linear(self.units*64, self.units)
-        self.fc2 = nn.Linear(self.units, 10)
-
-    def forward(self, x):
-        # block 1
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = self.conv4(x)
-        x = F.relu(self.pool(x))
-        # block 2
-        x = F.relu(self.conv5(x))
-        x = F.relu(self.conv6(x))
-        x = F.relu(self.conv7(x))
-        x = self.conv8(x)
-        x = F.relu(self.pool(x))
-        # FC block
-        x = self.bn(x)
-        x = x.view(-1, self.units*64)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
+def return_model(num_class, pretrained=True):
+    model = models.resnet18(pretrained=pretrained)
+    num_ftrs = model_ft.fc.in_features
+    model.fc = nn.Linear(num_ftrs, num_class)
+    return model
 
 def count_parameters(model):
     return sum([p.numel() for p in model.parameters() if p.requires_grad])
@@ -75,6 +44,7 @@ def main():
     transform = transforms.Compose([
         transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.1),
         torchvision.transforms.RandomAffine(5, scale=(0.9,1.1), resample=PIL.Image.BILINEAR),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
