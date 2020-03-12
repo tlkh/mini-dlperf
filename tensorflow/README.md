@@ -8,7 +8,7 @@ Performs a matrix multiplication benchmark test, returning the peak TFLOPS.
 python3 gpu_burn.py --num_gpus 8
 ```
 
-On a DGX-1 with 8 NVIDIA V100 GPUs, you should get a result like the following:
+On a DGX-1 (8 V100), you should get a result like the following:
 
 ```
 Max TFLOPS achieved (8 GPUs)
@@ -17,6 +17,8 @@ Max TFLOPS achieved (8 GPUs)
 * FP32: 116 TFLOPS
 * FP16: 742 TFLOPS
 ```
+
+On DGX Station (4 V100):
 
 | GPU Utilization | TFLOPS Plot |
 | --------------- | ----------- |
@@ -42,26 +44,15 @@ python3 resnet_tfdist.py --xla --amp --batch_size 256 --lr 0.5 --img_aug --epoch
 | --------------- | ------------------ |
 | ![](graphs/imagenette_320px_resnet_gpu_util.jpg) | ![](graphs/imagenette_320px_resnet_nvlink_util.jpg) |
 
-**DenseNet-201 + Horovod + OpenMPI + NCCL**
-
 ### Test Case 2 ("big CNN")
 
 * Model: DenseNet-201
-* Framework: TF2.1 + Horovod + OpenMPI
+* Framework: TF2.1 + tf.distribute
 * Uses NCCL: Yes
 
 ```shell
-mpirun -np 4 \
-    -bind-to none -map-by slot \
-    -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x PATH \
-    -mca pml ob1 -mca btl ^openib \
-    python3 resnet_horovod.py --amp --xla \
-    --dn201 --imgsize 256 --batchsize 56
+python3 resnet_tfdist.py --xla --amp --img_size 256 --batch_size 64 --lr 0.5 --img_aug --epochs 90 --dataset imagenette/320px --dn201
 ```
-
-| V100 | Training time | Images/sec | Val Acc |
-| ---- | ------------- | ---------- | ------- |
-| 4    | 1056s         | 750        | 0.9241  |
 
 ## Transformer Fine-tuning
 
