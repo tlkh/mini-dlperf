@@ -109,7 +109,7 @@ def return_glue_task(tokenizer, dataset_name, task_name, max_seq_len=512, index=
                                                              max_length=max_seq_len, task=task_name)
     
     print("\t[3/3] Converting test dataset...")
-    test_dataset = data["validation"]
+    test_dataset = data["validation"] # note: using validation dataset
     test_dataset = xfmers.glue_convert_examples_to_features(test_dataset, tokenizer,
                                                             max_length=max_seq_len, task=task_name)
     
@@ -121,7 +121,7 @@ def return_glue_task(tokenizer, dataset_name, task_name, max_seq_len=512, index=
             "test_dataset": test_dataset,
             "train_examples": train_examples,
             "valid_examples": valid_examples,
-            "test_examples": valid_examples, #test_examples,
+            "test_examples": valid_examples,
             "shards": num_shards,
             "num_labels": num_labels}
 

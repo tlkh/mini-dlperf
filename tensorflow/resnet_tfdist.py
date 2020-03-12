@@ -234,8 +234,8 @@ callbacks = [time_callback, checkpoints]
 
 if args.stats:
     SUDO_PASSWORD = os.environ["SUDO_PASSWORD"]
-    nv_stats = NVStats(gpu_index=0, interval=4, tensor_util=True, sudo_password=SUDO_PASSWORD)
-    nvlink_stats = NVLinkStats(SUDO_PASSWORD, gpus=[0,1,2,3], interval=4)
+    nv_stats = NVStats(gpu_index=0, interval=5, tensor_util=True, sudo_password=SUDO_PASSWORD)
+    nvlink_stats = NVLinkStats(SUDO_PASSWORD, gpus=[0,1,2,3], interval=5)
     callbacks.append(nv_stats)
     callbacks.append(nvlink_stats)
 

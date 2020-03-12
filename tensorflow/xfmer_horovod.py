@@ -1,5 +1,7 @@
 import time
 import os
+import psutil
+psutil.cpu_percent(interval=None)
 import multiprocessing
 worker_threads = multiprocessing.cpu_count()//4
 os.environ["TF_DISABLE_NVTX_RANGES"] = "1"
@@ -96,7 +98,8 @@ dataset_name = task_list[task_name]
 tf.config.threading.set_inter_op_parallelism_threads(worker_threads)
 tf.config.optimizer.set_jit(USE_XLA)
 tf.config.optimizer.set_experimental_options({
-    "auto_mixed_precision": USE_AMP
+    "auto_mixed_precision": USE_AMP,
+    "debug_stripper": True,
 })
 
 # Building input pipeline
@@ -119,15 +122,15 @@ print("Running pipelines:")
 
 for batch in train_dataset.take(1):
     batch = str(batch)
-    print("Data legnth:", len(batch))
+    print("Data length:", len(batch))
 
 for batch in test_dataset.take(1):
     batch = str(batch)
-    print("Data legnth:", len(batch))
+    print("Data length:", len(batch))
     
 for batch in valid_dataset.take(1):
     batch = str(batch)
-    print("Data legnth:", len(batch))
+    print("Data length:", len(batch))
     
 print("Wait for built prefetch cache")
 while psutil.cpu_percent(interval=1.0) > 1/worker_threads*100:
@@ -179,7 +182,7 @@ if hvd_rank == 0:
         print("Model is using Automatic Mixed Precision")
     verbose = 2
     model.summary()
-    time_callback = callbacks.TimeHistory()
+    time_callback = callbacks.TimeHistory(img_per_epoch=BATCH_SIZE*hvd_size*int(train_steps_per_epoch/fake_epochs_ratio))
     checkpoints = tf.keras.callbacks.ModelCheckpoint(monitor="val_accuracy", mode="max",
                                                      filepath=OUT_PATH+"checkpoint.h5",
                                                      save_weights_only=True,
@@ -188,8 +191,8 @@ if hvd_rank == 0:
     callbacks_list.append(checkpoints)
     if args.stats:
         SUDO_PASSWORD = os.environ["SUDO_PASSWORD"]
-        nv_stats = NVStats(gpu_index=0)
-        nvlink_stats = NVLinkStats(SUDO_PASSWORD, gpus=[0,1,2,3])
+        nv_stats = NVStats(gpu_index=0, interval=5, tensor_util=True, sudo_password=SUDO_PASSWORD)
+        nvlink_stats = NVLinkStats(SUDO_PASSWORD, gpus=[0,1,2,3], interval=5)
         callbacks_list.append(nv_stats)
         callbacks_list.append(nvlink_stats)
 else:
