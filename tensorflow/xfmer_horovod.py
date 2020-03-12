@@ -212,7 +212,7 @@ if hvd_rank == 0:
         nv_stats_recorder.plot_gpu_util(smooth=SMOOTH, outpath="transformer_gpu_util.jpg")
         nv_stats_recorder.plot_gpu_temp(smooth=SMOOTH, outpath="transformer_gpu_temp.jpg")
         nvlink_stats_recorder.plot_nvlink_traffic(smooth=SMOOTH, outpath="transformer_nvlink_util.jpg")
-        nvlink_stats_recorder.summary()
+        nv_stats_recorder.summary()
 
     # results
     

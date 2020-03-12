@@ -31,12 +31,12 @@ Max TFLOPS achieved (8 GPUs)
 * Uses NCCL: Yes
 
 ```shell
-python3 resnet_tfdist.py --xla --amp --batch_size 256 --lr 0.5 --img_aug --epochs 90 --dataset imagenette/320px
+python3 resnet_tfdist.py --xla --amp --batch_size 256 --lr 0.5 --img_aug --epochs 90 --dataset imagenette/320px --stats --verbose 2
 ```
 
 | V100 | Training time | Images/sec | Val Acc |
 | ---- | ------------- | ---------- | ------- |
-| 4    | 570s          | 4648       | 0.85    |
+| 4    | 400s          | 4906       | 0.878   |
 
 | GPU Utilization | NVLink Utilization |
 | --------------- | ------------------ |
@@ -62,16 +62,16 @@ mpirun -np 4 \
     -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x PATH \
     -mca pml ob1 -mca btl ^openib \
     python3 xfmer_horovod.py \
-    --amp  --epochs 1 --batch_size 20 --interval 10 --warmup_prop 0.3 \
+    --amp  --epochs 1 --batch_size 16 --interval 10 --warmup_prop 0.4 \
     --task qqp --maxseqlen 64 --model xlm-mlm-en-2048 \
-    --lr 0.00002
+    --lr 0.00004
 ```
 
 | V100 | Training time | Examples/sec | Val Acc |
 | ---- | ------------- | ------------ | ------- |
-| 4    | 1489s         | 292          | 0.63    |
+| 4    | 1732s         | 248          | 0.8108  |
 
 | GPU Utilization | NVLink Utilization |
 | --------------- | ------------------ |
-| ![](graphs/transformer_gpu_util.png) | ![](graphs/transformer_nvlink_util.png) |
+| ![](graphs/transformer_gpu_util.jpg) | ![](graphs/transformer_nvlink_util.jpg) |
 
