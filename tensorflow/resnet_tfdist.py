@@ -42,7 +42,7 @@ os.environ["NCCL_DEBUG"] = "WARN"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
 os.environ["TF_GPU_THREAD_COUNT"] = str(worker_threads)
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "false"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 import logging
 logger = logging.getLogger()
 logger.setLevel(logging.WARN)
@@ -135,7 +135,7 @@ print("Build tf.data input pipeline")
 train = dataset["train"]
 train = train.map(format_train_example, num_parallel_calls=worker_threads)
 train = train.batch(BATCH_SIZE, drop_remainder=True)
-train = train.prefetch(16)
+train = train.prefetch(8)
 
 valid = dataset["valid"]
 valid = valid.map(format_test_example, num_parallel_calls=worker_threads)
@@ -144,7 +144,7 @@ if num_valid > 512 :
 else:
     VAL_BATCH_SIZE = num_valid//replicas
 valid = valid.batch(VAL_BATCH_SIZE, drop_remainder=False)
-valid = valid.prefetch(16)
+valid = valid.prefetch(8)
 
 train_steps = int(num_train/BATCH_SIZE)
 valid_steps = int(num_valid/VAL_BATCH_SIZE)
@@ -264,8 +264,8 @@ if args.stats:
     nv_stats_recorder = nv_stats.recorder
     nvlink_stats_recorder = nvlink_stats.recorder
     prefix = args.dataset.replace("/", "_")
-    nv_stats_recorder.plot_gpu_util(smooth=5, outpath=prefix+"_resnet_gpu_util.png")
-    nvlink_stats_recorder.plot_nvlink_traffic(smooth=5, outpath=prefix+"_resnet_nvlink_util.png")
+    nv_stats_recorder.plot_gpu_util(smooth=5, outpath=prefix+"_resnet_gpu_util.jpg")
+    nvlink_stats_recorder.plot_nvlink_traffic(smooth=5, outpath=prefix+"_resnet_nvlink_util.jpg")
 
 duration = min(time_callback.times)
 fps = train_steps*BATCH_SIZE/duration
