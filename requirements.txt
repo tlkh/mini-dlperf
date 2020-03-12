@@ -1,3 +1,4 @@
+pillow
 matplotlib
 transformers
 nvstatsrecorder
