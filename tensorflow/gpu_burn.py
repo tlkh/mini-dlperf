@@ -2,7 +2,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--num_gpus", type=int,
                     help="Number of GPUs to use")
-parser.add_argument("--iterations", default=40, type=int,
+parser.add_argument("--iterations", default=60, type=int,
                     help="Number of iterations to run within each benchmark")
 parser.add_argument("--stats", action="store_true", default=False,
                     help="Record stats using NVStatsRecorder")
@@ -14,7 +14,7 @@ n_cores = multiprocessing.cpu_count()
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
 os.environ["TF_GPU_THREAD_COUNT"] = str(n_cores)
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "false"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 import time
 from tqdm import tqdm
@@ -41,6 +41,7 @@ def benchmark_matmul(M, gpus=1, dtype=tf.float32, iterations=100):
             A = tf.random.normal([M, M], mean=0, stddev=1, dtype=dtype)
             B = tf.random.normal([M, M], mean=0, stddev=1, dtype=dtype)
             C = do_op(A, B)
+            C = do_op(A, B)
             slots.append((A, B))
     C.numpy()
     # measure overhead
@@ -66,11 +67,12 @@ def benchmark_matmul(M, gpus=1, dtype=tf.float32, iterations=100):
 fp16_matmul, fp32_matmul, fp64_matmul = [], [], []
 fp16_tflops, fp32_tflops, fp64_tflops = [], [], []
 
-M_list = [10240, 8192, 5200, 5120, 5040, 4096, 2048, 1024, 512, 320, 256, 128, 80, 64, 32, 16, 4, 2, 1]
+M_list = [10240, 8192, 5200, 5120, 5040, 4096, 2048, 1024, 512, 320, 256, 128, 80, 64, 32, 8, 2, 1]
 
 if args.stats:
-    nv_stats_recorder = NVStatsRecorder(gpu_index=0)
-    nv_stats_recorder.start(interval=1)
+    SUDO_PASSWORD = os.environ["SUDO_PASSWORD"]
+    nv_stats_recorder = NVStatsRecorder(gpu_index=0, tensor_util=True, sudo_password=SUDO_PASSWORD)
+    nv_stats_recorder.start(interval=3)
 
 print("\nStarting burn...\n")
 
@@ -102,7 +104,7 @@ num_gpus = str(num_gpus)
     
 if args.stats:
     nv_stats_recorder.stop()
-    nv_stats_recorder.plot_gpu_util(smooth=3, outpath="graphs/burn_"+num_gpus+"_gpu_util.png")
+    nv_stats_recorder.plot_gpu_util(smooth=3, outpath="graphs/burn_"+num_gpus+"_gpu_util.jpg")
     
 title = "Max TFLOPS achieved (" + num_gpus + " GPUs)"
 print("")

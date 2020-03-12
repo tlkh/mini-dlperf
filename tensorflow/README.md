@@ -20,7 +20,7 @@ Max TFLOPS achieved (8 GPUs)
 
 | GPU Utilization | TFLOPS Plot |
 | --------------- | ----------- |
-| ![](graphs/burn_4_gpu_util.png) | ![](graphs/burn_4_gpu_tflops_plot.jpg) |
+| ![](graphs/burn_4_gpu_util.jpg) | ![](graphs/burn_4_gpu_tflops_plot.jpg) |
 
 ## Image Classification
 
@@ -36,11 +36,11 @@ python3 resnet_tfdist.py --xla --amp --batch_size 256 --lr 0.5 --img_aug --epoch
 
 | V100 | Training time | Images/sec | Val Acc |
 | ---- | ------------- | ---------- | ------- |
-| 4    | 519s          | 4274       | 0.858   |
+| 4    | 570s          | 4648       | 0.85    |
 
 | GPU Utilization | NVLink Utilization |
 | --------------- | ------------------ |
-| ![](graphs/imagenette_320px_resnet_gpu_util.png) | ![](graphs/imagenette_320px_resnet_nvlink_util.png) |
+| ![](graphs/imagenette_320px_resnet_gpu_util.jpg) | ![](graphs/imagenette_320px_resnet_nvlink_util.jpg) |
 
 **DenseNet-201 + Horovod + OpenMPI + NCCL**
 
