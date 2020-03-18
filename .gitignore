@@ -1,3 +1,10 @@
+data
+.DS_Store
+*/.DS_Store
+*/*.h5
+*/*.pth
+*/*/*.pth
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
