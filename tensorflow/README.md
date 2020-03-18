@@ -94,7 +94,7 @@ Default model is MLPerf ResNet-50 V1.5. Other CNN models can be specified:
 * `--rn50v2`: ResNet-50 V2
 * `--rn152`: ResNet-152 V2
 * `--dn201`: DenseNet-201
-* `mobilenet`: MobileNet V2
+* `--mobilenet`: MobileNet V2
 
 #### Alternate Implementation
 
