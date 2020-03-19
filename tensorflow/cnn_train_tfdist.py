@@ -38,7 +38,9 @@ args = parser.parse_args()
 import os
 import multiprocessing
 n_cores = multiprocessing.cpu_count()
+print("Number of logical cores:", n_cores)
 worker_threads = n_cores - 8
+print("Number of threads used for dataloader:", worker_threads)
 os.environ["TF_DISABLE_NVTX_RANGES"] = "1"
 os.environ["NCCL_DEBUG"] = "WARN"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"

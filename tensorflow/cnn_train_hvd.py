@@ -39,6 +39,7 @@ args = parser.parse_args()
 
 import os
 import multiprocessing
+import psutil
 os.environ["TF_DISABLE_NVTX_RANGES"] = "1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["NCCL_DEBUG"] = "WARN"
@@ -52,12 +53,15 @@ hvd.init()
 hvd_rank = hvd.rank()
 hvd_size = hvd.size()
 n_cores = multiprocessing.cpu_count()
-worker_threads = int((n_cores/hvd_size) - 1)
+worker_threads = int((n_cores/hvd_size))
+
+print("Number of logical cores:", n_cores)
+print("Number of threads used per worker:", worker_threads)
 
 print(hvd_rank, "Initialized!")
 
 os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
-os.environ["TF_GPU_THREAD_COUNT"] = str(worker_threads)
+os.environ["TF_GPU_THREAD_COUNT"] = str(worker_threads-1)
 
 import tensorflow as tf
 
@@ -169,6 +173,7 @@ for batch in train.take(2):
     print("* Image size:", len(str(image)))
     print("* Label shape:", label.shape)
 
+print(hvd_rank, psutil.cpu_percent(interval=1))
 time.sleep(1)
     
 for batch in valid.take(2):
@@ -336,6 +341,9 @@ if args.ctl:
             loss_value = train_step(inputs)
             epoch_loss += loss_value
         return float(epoch_loss/train_steps)
+    
+    def return_fps(train_steps, duration):
+        return int(BATCH_SIZE*hvd_size*train_steps/duration)
 
     def train_loop(num_epochs, train_steps):
         history = {"time_history": [],}
@@ -358,9 +366,14 @@ if args.ctl:
             top_1_acc = hvd.allreduce(top_1.result())
             top_5_acc = hvd.allreduce(top_5.result())
             if verbose:
-                print("\nEpoch", epoch+1, ":", str(int(duration))+"s", "- loss:", epoch_loss, "- acc:", top_1_acc.numpy(), "- top_5:", top_5_acc.numpy())
+                print("CPU:", psutil.cpu_percent(interval=None))
+                print("Duration:", str(int(duration))+"s",
+                      "- loss:", round(epoch_loss, 3),
+                      "- acc:", round(top_1_acc.numpy(), 3),
+                      "- top_5:", round(top_5_acc.numpy(), 3))
+                print("Images/sec:", return_fps(train_steps, duration))
                 history["time_history"].append(duration)
-                print("")
+                print("\n")
             top_1.reset_states()
             top_5.reset_states()
 
