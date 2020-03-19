@@ -35,6 +35,7 @@ parser.add_argument("--no_val", action="store_true", default=False)
 parser.add_argument("--img_aug", action="store_true", default=False)
 parser.add_argument("--fp16comp", action="store_true", default=False)
 parser.add_argument("--ctl", action="store_true", default=False)
+parser.add_argument("--report", action="store_true", default=False)
 args = parser.parse_args()
 
 import os
@@ -64,7 +65,7 @@ print(hvd_rank, "Initialized!")
 
 os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
 if args.img_aug:
-    TF_GPU_THREAD_COUNT = str(worker_threads-4)
+    TF_GPU_THREAD_COUNT = str(3)
 else:
     TF_GPU_THREAD_COUNT = str(worker_threads)
 os.environ["TF_GPU_THREAD_COUNT"] = TF_GPU_THREAD_COUNT
@@ -429,3 +430,22 @@ if hvd_rank == 0:
     print("*", hvd_size, "GPU:", int(fps*hvd_size))
     print("* Per GPU:", int(fps))
     print("Total train time:", int(train_end-train_start))
+    
+    if args.report:
+        import paramiko
+
+        uid = str(int(time.time()))
+        result_path = "/home/jovyan/"+uid+"_result.txt"
+        f = open(result_path,"w+")
+        f.write("Avg images/sec:"+str(fps))
+        f.write("\nEnd-to-end time:"+str(train_end-train_start))
+        f.write("\n")
+        f.close()
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect("192.168.33.10", username="uat", password=os.environ["uat_password"])
+        sftp = ssh.open_sftp()
+        sftp.put(result_path, "/home/users/uat/"+uid+"_result.txt")
+        sftp.close()
+        ssh.close()
