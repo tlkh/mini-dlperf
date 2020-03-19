@@ -33,13 +33,14 @@ parser.add_argument("--verbose", default=1, type=int)
 parser.add_argument("--steps", type=int, default=None)
 parser.add_argument("--no_val", action="store_true", default=False)
 parser.add_argument("--img_aug", action="store_true", default=False)
+parser.add_argument("--report", action="store_true", default=False)
 args = parser.parse_args()
 
 import os
 import multiprocessing
 n_cores = multiprocessing.cpu_count()
 print("Number of logical cores:", n_cores)
-worker_threads = n_cores - 8
+worker_threads = n_cores
 print("Number of threads used for dataloader:", worker_threads)
 os.environ["TF_DISABLE_NVTX_RANGES"] = "1"
 os.environ["NCCL_DEBUG"] = "WARN"
@@ -313,3 +314,22 @@ print("*", replicas, "GPU:", int(fps))
 print("* Per GPU:", int(fps/replicas))
 print("Total train time:", int(train_end-train_start))
 print("Acc:", acc, "Top 5 Acc:", top_5_acc)
+
+if args.report:
+    import paramiko
+    
+    uid = str(int(time.time()))
+    result_path = "/home/jovyan/"+uid+"_result.txt"
+    f = open(result_path,"w+")
+    f.write("Avg images/sec:"+str(fps))
+    f.write("\nEnd-to-end time:"+str(train_end-train_start))
+    f.write("\n")
+    f.close()
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect("192.168.33.10", username="uat", password=os.environ["uat_password"])
+    sftp = ssh.open_sftp()
+    sftp.put(result_path, "/home/users/uat/"+uid+"_result.txt")
+    sftp.close()
+    ssh.close()

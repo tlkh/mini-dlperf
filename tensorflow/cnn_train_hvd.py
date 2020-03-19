@@ -54,6 +54,8 @@ hvd_rank = hvd.rank()
 hvd_size = hvd.size()
 n_cores = multiprocessing.cpu_count()
 worker_threads = int((n_cores/hvd_size))
+if not args.img_aug:
+    worker_threads -= 1
 
 print("Number of logical cores:", n_cores)
 print("Number of threads used per worker:", worker_threads)
@@ -61,7 +63,11 @@ print("Number of threads used per worker:", worker_threads)
 print(hvd_rank, "Initialized!")
 
 os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
-os.environ["TF_GPU_THREAD_COUNT"] = str(worker_threads-1)
+if args.img_aug:
+    TF_GPU_THREAD_COUNT = str(worker_threads-4)
+else:
+    TF_GPU_THREAD_COUNT = str(worker_threads)
+os.environ["TF_GPU_THREAD_COUNT"] = TF_GPU_THREAD_COUNT
 
 import tensorflow as tf
 
@@ -149,12 +155,12 @@ if hvd_rank == 0:
     print("Build tf.data input pipeline")
 
 train = dataset["train"]
-train = train.map(format_train_example, num_parallel_calls=multiprocessing.cpu_count())
+train = train.map(format_train_example, num_parallel_calls=worker_threads)
 train = train.batch(BATCH_SIZE, drop_remainder=True)
 train = train.prefetch(8)
 
 valid = dataset["valid"]
-valid = valid.map(format_test_example, num_parallel_calls=multiprocessing.cpu_count())
+valid = valid.map(format_test_example, num_parallel_calls=worker_threads)
 if num_valid > 512 :
     VAL_BATCH_SIZE = BATCH_SIZE
 else:
