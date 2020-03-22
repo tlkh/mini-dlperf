@@ -58,6 +58,7 @@ n_cores = multiprocessing.cpu_count()
 worker_threads = int((n_cores/hvd_size))
 if not args.img_aug:
     worker_threads -= 1
+    worker_threads = max(worker_threads, 1)
 
 print("Process:", hvd_rank, "- Local Rank:", )
 print("Number of logical cores:", n_cores)
@@ -104,9 +105,12 @@ if hvd_rank == 0:
     print("Loading Dataset")
     print("Using TFDS dataset:", args.dataset)
     
+img_aug_threads = worker_threads-2
+img_aug_threads = max(img_aug_threads, 1)
+    
 dataset = dataloaders.return_fast_tfds(args.dataset,
                                        data_dir=args.data_dir,
-                                       worker_threads=worker_threads-2,
+                                       worker_threads=img_aug_threads,
                                        buffer=BATCH_SIZE*8,
                                        num_shards=hvd_size,
                                        index=hvd_rank)
