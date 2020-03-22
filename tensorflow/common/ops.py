@@ -7,7 +7,6 @@ def crop_center_and_resize(image, img_size):
     w_start = (w - c) // 2
     h_start = (h - c) // 2
     center = tf.slice(image, [w_start, h_start, 0], [c, c, -1])
-    #center = image[w_start:w_start + c, h_start:h_start + c]
     return tf.image.resize(image, (img_size, img_size))
 
 def resize_preserve_ratio(image, img_size):

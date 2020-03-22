@@ -111,33 +111,33 @@ means = tf.cast(tf.broadcast_to(CHANNEL_MEANS, (IMG_SIZE, IMG_SIZE, 3)), tf_imag
 if args.img_aug:
     @tf.function
     def format_train_example(image_path, label):
-        image = tf.io.decode_jpeg(image_path, channels=3, ratio=1,
+        image = tf.io.decode_jpeg(image_path, channels=3, ratio=2,
                               fancy_upscaling=False,
                               dct_method="INTEGER_FAST")
         image = ops.resize_preserve_ratio(image, L_IMG_SIZE)
         image = ops.augment_image(image, IMG_SIZE)
-        image = tf.cast(image, tf_image_dtype) - means
+        image = (tf.cast(image, tf_image_dtype) - means)/127.5
         return image, label
 else:
     @tf.function
     def format_train_example(image_path, label):
-        image = tf.io.decode_jpeg(image_path, channels=3, ratio=1,
+        image = tf.io.decode_jpeg(image_path, channels=3, ratio=2,
                                   fancy_upscaling=False,
                                   dct_method="INTEGER_FAST")
         image = tf.image.central_crop(image, 0.9)
         image = ops.crop_center_and_resize(image, IMG_SIZE)
-        image = tf.cast(image, tf_image_dtype) - means
+        image = (tf.cast(image, tf_image_dtype) - means)/127.5
         return image, label
 
 
 @tf.function
 def format_test_example(image_path, label):
-    image = tf.io.decode_jpeg(image_path, channels=3, ratio=1,
+    image = tf.io.decode_jpeg(image_path, channels=3, ratio=2,
                               fancy_upscaling=False,
                               dct_method="INTEGER_FAST")
     image = tf.image.central_crop(image, 0.9)
     image = ops.crop_center_and_resize(image, IMG_SIZE)
-    image = tf.cast(image, tf_image_dtype) - means
+    image = (tf.cast(image, tf_image_dtype) - means)/127.5
     return image, label
 
 print("Build tf.data input pipeline")
@@ -214,7 +214,7 @@ with strategy.scope():
         max_epochs=EPOCHS,
     )
     
-    opt = tf.keras.optimizers.SGD(learning_rate=schedule, momentum=0.875, nesterov=False)
+    opt = tf.keras.optimizers.SGD(learning_rate=schedule, momentum=0.875, nesterov=True)
     
     if args.amp:
         opt = tf.keras.mixed_precision.experimental.LossScaleOptimizer(opt, "dynamic")

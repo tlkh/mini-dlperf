@@ -52,12 +52,14 @@ import horovod.tensorflow.keras as hvd
 
 hvd.init()
 hvd_rank = hvd.rank()
+hvd_local_rank = hvd.local_rank()
 hvd_size = hvd.size()
 n_cores = multiprocessing.cpu_count()
 worker_threads = int((n_cores/hvd_size))
 if not args.img_aug:
     worker_threads -= 1
 
+print("Process:", hvd_rank, "- Local Rank:", )
 print("Number of logical cores:", n_cores)
 print("Number of threads used per worker:", worker_threads)
 
@@ -65,7 +67,7 @@ print(hvd_rank, "Initialized!")
 
 os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
 if args.img_aug:
-    TF_GPU_THREAD_COUNT = str(3)
+    TF_GPU_THREAD_COUNT = str(2)
 else:
     TF_GPU_THREAD_COUNT = str(worker_threads)
 os.environ["TF_GPU_THREAD_COUNT"] = TF_GPU_THREAD_COUNT
@@ -73,7 +75,7 @@ os.environ["TF_GPU_THREAD_COUNT"] = TF_GPU_THREAD_COUNT
 import tensorflow as tf
 
 gpus = tf.config.experimental.list_physical_devices("GPU")
-tf.config.experimental.set_visible_devices(gpus[hvd_rank], "GPU")
+tf.config.experimental.set_visible_devices(gpus[hvd_local_rank], "GPU")
 
 import tensorflow_datasets as tfds
 from common import dataloaders, cnn_models, callbacks, schedules, ops
@@ -88,7 +90,7 @@ tf_image_dtype = tf.float32
 
 if hvd_rank == 0:
     print("Number of devices:", hvd_size)
-    print("Global batch size:", BATCH_SIZE)
+    print("Global batch size:", BATCH_SIZE*hvd_size)
     print("Base learning rate:", args.lr)
     print("Using XLA:", args.xla)
     print("Using grappler AMP:", args.amp)
@@ -104,7 +106,7 @@ if hvd_rank == 0:
     
 dataset = dataloaders.return_fast_tfds(args.dataset,
                                        data_dir=args.data_dir,
-                                       worker_threads=worker_threads,
+                                       worker_threads=worker_threads-2,
                                        buffer=BATCH_SIZE*8,
                                        num_shards=hvd_size,
                                        index=hvd_rank)
@@ -121,9 +123,8 @@ CHANNEL_MEANS = [_R_MEAN, _G_MEAN, _B_MEAN]
 means = tf.cast(tf.broadcast_to(CHANNEL_MEANS, (IMG_SIZE, IMG_SIZE, 3)), tf_image_dtype)
 
 if args.img_aug:
-    @tf.function
     def format_train_example(image_path, label):
-        image = tf.io.decode_jpeg(image_path, channels=3, ratio=1,
+        image = tf.io.decode_jpeg(image_path, channels=3, ratio=2,
                               fancy_upscaling=False,
                               dct_method="INTEGER_FAST")
         image = ops.resize_preserve_ratio(image, L_IMG_SIZE)
@@ -133,7 +134,7 @@ if args.img_aug:
 else:
     @tf.function
     def format_train_example(image_path, label):
-        image = tf.io.decode_jpeg(image_path, channels=3, ratio=1,
+        image = tf.io.decode_jpeg(image_path, channels=3, ratio=2,
                                   fancy_upscaling=False,
                                   dct_method="INTEGER_FAST")
         image = tf.image.central_crop(image, 0.9)
@@ -144,7 +145,7 @@ else:
 
 @tf.function
 def format_test_example(image_path, label):
-    image = tf.io.decode_jpeg(image_path, channels=3, ratio=1,
+    image = tf.io.decode_jpeg(image_path, channels=3, ratio=2,
                               fancy_upscaling=False,
                               dct_method="INTEGER_FAST")
     image = tf.image.central_crop(image, 0.9)
@@ -165,12 +166,12 @@ valid = valid.map(format_test_example, num_parallel_calls=worker_threads)
 if num_valid > 512 :
     VAL_BATCH_SIZE = BATCH_SIZE
 else:
-    VAL_BATCH_SIZE = num_valid//2
+    VAL_BATCH_SIZE = num_valid//hvd_size
 valid = valid.batch(VAL_BATCH_SIZE, drop_remainder=False)
 valid = valid.prefetch(8)
 
-train_steps = int(num_train/BATCH_SIZE)
-valid_steps = int(num_valid/VAL_BATCH_SIZE)
+train_steps = int(num_train/BATCH_SIZE/hvd_size)
+valid_steps = int(num_valid/VAL_BATCH_SIZE/hvd_size)
 
 print(hvd_rank, "Running pipelines:")
 
@@ -266,6 +267,7 @@ if args.steps:
         valid_steps = args.steps
 
 if not args.ctl:
+    
     callback_list = [
         hvd.callbacks.BroadcastGlobalVariablesCallback(0),
         hvd.callbacks.MetricAverageCallback(),
@@ -316,7 +318,8 @@ if args.ctl:
     import horovod.tensorflow as hvd_tf
     
     @tf.function
-    def train_first_step(images, labels):
+    def train_first_step(inputs):
+        images, labels = inputs
         with tf.GradientTape() as tape:
             probs = model(images, training=True)
             loss_value = loss(labels, probs)
@@ -327,7 +330,7 @@ if args.ctl:
         hvd_tf.broadcast_variables(opt.variables(), root_rank=0)
 
     train_iter = iter(train)
-
+    
     @tf.function
     def train_step(inputs):
         images, labels = inputs
@@ -340,45 +343,54 @@ if args.ctl:
         top_1(labels, probs)
         top_5(labels, probs)
         return loss_value
-
-    def train_epoch(train_steps):
+    
+    def train_epoch(train_steps, verbose=False):
         epoch_loss = 0
-        for batch in range(train_steps):
-            inputs = next(train_iter)
-            loss_value = train_step(inputs)
-            epoch_loss += loss_value
+        if verbose:
+            for batch in trange(train_steps):
+                inputs = next(train_iter)
+                loss_value = train_step(inputs)
+                epoch_loss += loss_value
+        else:
+            for batch in range(train_steps):
+                inputs = next(train_iter)
+                loss_value = train_step(inputs)
+                epoch_loss += loss_value
         return float(epoch_loss/train_steps)
     
     def return_fps(train_steps, duration):
         return int(BATCH_SIZE*hvd_size*train_steps/duration)
 
-    def train_loop(num_epochs, train_steps):
+    def train_loop(num_epochs, train_steps, verbose=1):
         history = {"time_history": [],}
         print(hvd_rank, "Do hvd broadcast_variables")
-        for batch, (images, labels) in enumerate(train.take(1)):
-            train_first_step(images, labels)
+        for example in train.take(1):
+            train_first_step(example)
         print(hvd_rank, "Start actual training")
         
-        if hvd_rank == 0:
+        if hvd_rank == 0 and args.verbose == 1:
             verbose = True
         else:
             verbose = False
         
         for epoch in range(num_epochs):
             if verbose:
-                print("\nEpoch", epoch+1, "/", num_epochs)
+                print("\nEpoch", epoch+1, "/", num_epochs, "-", train_steps, "steps")
             st = time.time()
-            epoch_loss = train_epoch(train_steps)
-            duration = time.time() - st
+            epoch_loss = train_epoch(train_steps, verbose=verbose)
+            et = time.time()
+            duration = et - st
             top_1_acc = hvd.allreduce(top_1.result())
             top_5_acc = hvd.allreduce(top_5.result())
             if verbose:
-                print("CPU:", psutil.cpu_percent(interval=None))
-                print("Duration:", str(int(duration))+"s",
+                print("")
+                print("CPU:", psutil.cpu_percent(interval=None),
+                      "- duration:", str(int(duration))+"s",
                       "- loss:", round(epoch_loss, 3),
                       "- acc:", round(top_1_acc.numpy(), 3),
                       "- top_5:", round(top_5_acc.numpy(), 3))
-                print("Images/sec:", return_fps(train_steps, duration))
+                print("Step time:", round(duration/train_steps, 3), "- images/sec:", return_fps(train_steps, duration))
+                print()
                 history["time_history"].append(duration)
                 print("\n")
             top_1.reset_states()
