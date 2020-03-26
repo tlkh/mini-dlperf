@@ -87,6 +87,19 @@ Alternate launch script to get direct training throughput (images per second) me
     --epochs 10 --ctl --steps 100 --no_val --verbose 2
 ```
 
+Single 8GB GPU test:
+
+```shell
+mpirun -np 1 \
+  -bind-to none -map-by slot \
+  -x LD_LIBRARY_PATH -x PATH \
+  -mca pml ob1 -mca btl ^openib \
+  python3 cnn_train_hvd.py \
+    --xla --amp --batch_size 1 \
+    --dataset imagenette/160px \
+    --epochs 1 --ctl --steps 100 --no_val --verbose 2 --fp16comp
+```
+
 #### Alternate Models
 
 Default model is MLPerf ResNet-50 V1.5. Other CNN models can be specified:

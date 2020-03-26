@@ -395,8 +395,8 @@ if args.ctl:
                       "- top_5:", round(top_5_acc.numpy(), 3))
                 print("Step time:", round(duration/train_steps, 3), "- images/sec:", return_fps(train_steps, duration))
                 print()
-                history["time_history"].append(duration)
                 print("\n")
+            history["time_history"].append(duration)
             top_1.reset_states()
             top_5.reset_states()
 

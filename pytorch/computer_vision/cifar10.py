@@ -81,6 +81,7 @@ def main():
 
     for epoch in range(EPOCHS):
         print("\nEpoch: "+str(epoch+1)+"/"+str(EPOCHS))
+        print("")
 
         running_loss = 0.0
         
@@ -105,7 +106,7 @@ def main():
         duration = time.time() - epoch_start
         fps = int(img_per_epoch/duration)
         fps_list.append(fps)
-        print("Images/sec:", fps)
+        print("\nImages/sec:", fps, "\n")
         
     et = time.time()
     
