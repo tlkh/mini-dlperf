@@ -48,6 +48,7 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.WARN)
 import time
+import numpy as np
 import horovod.tensorflow.keras as hvd
 
 hvd.init()
@@ -436,9 +437,12 @@ if hvd_rank == 0:
             nvlink_stats_recorder.plot_nvlink_traffic(smooth=5, outpath=prefix+"_resnet_nvlink_util.jpg")
     if args.ctl:
         duration = min(history["time_history"])
+        avg_duration = float(np.mean(history["time_history"]))
     else:
         duration = min(time_callback.times)
+        avg_duration = float(np.mean(time_callback.times))
     fps = train_steps*BATCH_SIZE/duration
+    avg_fps = train_steps*BATCH_SIZE/avg_duration
     print("\n")
     print("Results:")
     print("========\n")
@@ -453,8 +457,9 @@ if hvd_rank == 0:
         uid = str(int(time.time()))
         result_path = "/home/jovyan/"+uid+"_result.txt"
         f = open(result_path,"w+")
-        f.write("Avg images/sec:"+str(fps))
-        f.write("\nEnd-to-end time:"+str(train_end-train_start))
+        f.write("Avg images/sec: "+str(avg_fps))
+        f.write("\nPeak images/sec: "+str(fps))
+        f.write("\nEnd-to-end time: "+str(train_end-train_start))
         f.write("\n")
         f.close()
 
