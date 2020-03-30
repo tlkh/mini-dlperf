@@ -4,7 +4,7 @@ parser.add_argument("--num_gpus", type=int, default=1,
                     help="Number of GPUs to use")
 parser.add_argument("--stats", action="store_true", default=False,
                     help="Record stats using NVStatsRecorder")
-parser.add_argument("--msize", default=5120, type=int,
+parser.add_argument("--msize", default=16384, type=int,
                     help="Matrix size (M*M)")
 parser.add_argument("--time", default=360, type=int,
                     help="Min time to continuously run the stress test")
@@ -16,7 +16,7 @@ n_cores = multiprocessing.cpu_count()
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["TF_GPU_THREAD_MODE"] = "gpu_private"
 os.environ["TF_GPU_THREAD_COUNT"] = str(n_cores)
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "false"
 
 import time
 from tqdm import tqdm
