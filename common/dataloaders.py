@@ -42,7 +42,7 @@ def return_fast_tfds(dataset_name="imagenette/160px", data_dir="~/tensorflow_dat
     st = time.time()
     
     options = tf.data.Options()
-    read_config = tfds.ReadConfig(options=options, interleave_parallel_reads=worker_threads)
+    read_config = tfds.ReadConfig(options=options, interleave_cycle_length=worker_threads)
     dataset, info = tfds.load(dataset_name,
                               data_dir=data_dir,
                               read_config=read_config,

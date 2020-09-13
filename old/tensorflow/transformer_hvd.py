@@ -14,11 +14,11 @@ parser = argparse.ArgumentParser(
     description="Train and evaluate Transformers for various GLUE tasks",
 )
 
-parser.add_argument("--amp", action="store_true", default=False,
+parser.add_argument("--amp", action="store_true", default=True,
                     help="Use grappler AMP for mixed precision training")
-parser.add_argument("--xla", action="store_true", default=False,
+parser.add_argument("--xla", action="store_true", default=True,
                     help="Use XLA compiler")
-parser.add_argument("--fp16comp", action="store_true", default=False,
+parser.add_argument("--fp16comp", action="store_true", default=True,
                     help="Use float16 compression during allreduce")
 parser.add_argument("--epochs", default=3,
                     help="Number of epochs to train for",
