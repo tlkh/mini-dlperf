@@ -1,0 +1,5 @@
+pynvml
+py3nvml
+matplotlib
+numpy
+streamlit
