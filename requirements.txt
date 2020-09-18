@@ -1,6 +1,0 @@
-transformers
-pandas
-matplotlib
-seaborn
-streamlit
-
