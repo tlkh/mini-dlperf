@@ -1,2 +1,6 @@
 transformers
-nvstatsrecorder
+pandas
+matplotlib
+seaborn
+streamlit
+

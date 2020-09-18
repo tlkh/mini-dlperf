@@ -4,6 +4,7 @@ data
 */*.h5
 */*.pth
 */*/*.pth
+tensorflow_datasets/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

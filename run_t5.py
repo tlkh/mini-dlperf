@@ -6,15 +6,20 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument("--amp", action="store_true", default=True,
                     help="Use grappler AMP for mixed precision training")
-parser.add_argument("--xla", action="store_true", default=True,
+parser.add_argument("--xla", action="store_true", default=False,
                     help="Use XLA compiler")
 parser.add_argument("--fp16comp", action="store_true", default=True,
                     help="Use float16 compression during allreduce")
+parser.add_argument("--reduce_vram", action="store_true", default=False,
+                    help="Optimize VRAM usage for large models")
 parser.add_argument("--epochs", default=4,
                     help="Number of epochs to train for",
                     type=int)
 parser.add_argument("--batch_size", default=8,
                     help="Batch size to use for training",
+                    type=int)
+parser.add_argument("--steps", default=200,
+                    help="Number of steps to use for training",
                     type=int)
 parser.add_argument("--maxseqlen", default=512,
                     help="Maximum input sequence length",
@@ -41,9 +46,9 @@ tf.config.optimizer.set_experimental_options({"auto_mixed_precision": args.amp,
                                               "debug_stripper": True})
 import numpy as np
 import transformers
-import utils
+from common import callbacks
 import horovod.tensorflow.keras as hvd
-from nvstatsrecorder.callbacks import NVStats
+from nvstatsrecorder.callbacks import NVStats, NVLinkStats
 
 hvd.init()
 
@@ -86,7 +91,7 @@ def return_t5_model(model_name, max_seq_len=512):
 
 
 
-model = return_t5_model(model_name=args.model)
+model = return_t5_model(model_name=args.model, max_seq_len=args.maxseqlen)
 opt = tf.keras.optimizers.Adam()
 
 if args.fp16comp:
@@ -94,9 +99,16 @@ if args.fp16comp:
     compression = hvd.Compression.fp16
 else:
     compression = hvd.Compression.none
-opt = hvd.DistributedOptimizer(opt,
-                               sparse_as_dense=True,
-                               compression=compression)
+    
+if args.reduce_vram:
+    opt = hvd.DistributedOptimizer(opt,
+                                   sparse_as_dense=False,
+                                   device_sparse='/cpu:0',
+                                   compression=compression)
+else:
+    opt = hvd.DistributedOptimizer(opt,
+                                   sparse_as_dense=True,
+                                   compression=compression)
 
 if args.amp:
     opt = tf.keras.mixed_precision.experimental.LossScaleOptimizer(opt, "dynamic")
@@ -106,7 +118,7 @@ model.compile(loss=lossfn,
               optimizer=opt,
               experimental_run_tf_function=False)
 
-time_history = utils.TimeHistory()
+time_history = callbacks.TimeHistory()
 
 callbacks = [
     hvd.callbacks.BroadcastGlobalVariablesCallback(0),
@@ -116,9 +128,13 @@ callbacks = [
 
 if hvd.local_rank() == 0:
     nv_stats = NVStats(gpu_index=0, interval=1, verbose=False)
+    nvlink_interval = 5
+    nvlink_stats = NVLinkStats(None, gpus=[0,1,2,3], interval=nvlink_interval)
     callbacks.append(nv_stats)
+    callbacks.append(nvlink_stats)
+    RECORD_NVLINK = True
 
-steps_per_epoch = 200
+steps_per_epoch = args.steps
 
 if hvd.local_rank() == 0:
     verbose = 2
@@ -150,9 +166,24 @@ if verbose > 0:
         if t[1] > first_epoch:
             throttle.append(t[0])
     throttle = list(set(throttle))
+    
+    if RECORD_NVLINK:
+        nvlink_stats_recorder = nvlink_stats.recorder
+        skip_time = int(time_history.epoch_times[0]/nvlink_interval)
+        nvlink_history = nvlink_stats_recorder.get_data()["nvlink_history"][skip_time:]
+        print(nvlink_history)
+        avg_nvlink_list = []
+        for t in nvlink_history:
+            avg_nvlink_list.append(
+                sum([i for i in t.values()])/len(list(t.keys()))
+            )
+        avg_nvlink = round(sum(avg_nvlink_list)/len(avg_nvlink_list), 1)
+    else:
+        avg_nvlink = 0.0
+    
     print("Results:")
     result_data = [
-        avg_fps, avg_sm, avg_mem, avg_pcie, pcie_gbps, avg_pwr, pwr_watts, avg_temp, max_vram, throttle
+        "PASS", avg_fps, avg_sm, avg_mem, avg_pcie, pcie_gbps, avg_pwr, pwr_watts, avg_temp, max_vram, avg_nvlink, throttle
     ]
     results = ",".join([str(r) for r in result_data])
     print(results)

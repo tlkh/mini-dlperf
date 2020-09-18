@@ -6,7 +6,7 @@ import tensorflow.keras.applications as models
 from . import mlperf_rn50
 
 
-def toycnn(img_size=(224,224), num_class=2, weights=None, dtype=tf.float32):
+def toy_cnn(img_size=(224,224), num_class=2, weights=None, dtype=tf.float32):
     model = tf.keras.models.Sequential([
         layers.Conv2D(64, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu", input_shape=(img_size[0],img_size[1],3), dtype=dtype),
         layers.Conv2D(64, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
@@ -20,6 +20,40 @@ def toycnn(img_size=(224,224), num_class=2, weights=None, dtype=tf.float32):
         layers.Conv2D(64, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
         layers.BatchNormalization(fused=True),
         layers.GlobalAveragePooling2D(),
+        layers.Dense(num_class),
+        layers.Activation("softmax", dtype=tf.float32)
+    ])
+    return model
+
+def huge_cnn(img_size=(224,224), num_class=2, weights=None, dtype=tf.float32):
+    model = tf.keras.models.Sequential([
+        layers.Conv2D(128, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu", input_shape=(img_size[0],img_size[1],3), dtype=dtype),
+        layers.MaxPooling2D((4,4)),
+        layers.BatchNormalization(fused=True),
+        layers.Conv2D(512, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.MaxPooling2D((4,4)),
+        layers.BatchNormalization(fused=True),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.MaxPooling2D((4,4)),
+        layers.BatchNormalization(fused=True),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.Conv2D(1024, (3,3), padding="same", kernel_initializer="he_uniform", activation="relu"),
+        layers.BatchNormalization(fused=True),
+        layers.GlobalAveragePooling2D(),
+        layers.Dense(512),
         layers.Dense(num_class),
         layers.Activation("softmax", dtype=tf.float32)
     ])

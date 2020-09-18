@@ -3,18 +3,17 @@ import tensorflow as tf
 
 
 class TimeHistory(tf.keras.callbacks.Callback):
-    def __init__(self, eg_per_epoch):
+    def __init__(self, eg_per_epoch=None):
         super(TimeHistory, self).__init__()
-        self.times = None
+        self.epoch_times = None
         self.eg_per_epoch = eg_per_epoch
     def on_train_begin(self, logs={}):
-        self.times = []
+        self.epoch_times = []
     def on_epoch_begin(self, epoch, logs={}):
         self.epoch_time_start = time.time()
     def on_epoch_end(self, epoch, logs={}):
         epoch_duration = time.time() - self.epoch_time_start
-        self.times.append(epoch_duration)
-        print("\nEg/sec:", int(self.eg_per_epoch/epoch_duration))
+        self.epoch_times.append(epoch_duration)
 
         
 class LRWarmUp(tf.keras.callbacks.Callback):
